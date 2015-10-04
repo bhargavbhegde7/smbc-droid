@@ -18,7 +18,6 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 public class ComicManager {
     private static final String LOGTAG = ComicManager.class.getSimpleName();
@@ -26,13 +25,10 @@ public class ComicManager {
     private static ComicManager mInstance;
 
     private Map<Integer, Comic> mComics;
-    private Integer current;
     private Integer latest;
-    private final Random mRandom;
 
     private ComicManager() {
-        mComics =  new HashMap<>(100);
-        mRandom = new Random();
+        mComics = new HashMap<>(100);
         setLatest();
     }
 
@@ -43,37 +39,13 @@ public class ComicManager {
         return mInstance;
     }
 
-    public ListenableFuture<Comic> random() {
-        current = mRandom.nextInt(latest);
-        return getComic(current);
-    }
-
-    public ListenableFuture<Comic> current() {
-        return getComic(current);
-    }
-
-    public ListenableFuture<Comic> next() {
-        current--;
-        return getComic(current);
-    }
-
-    public ListenableFuture<Comic> previous() {
-        current++;
-        return getComic(current);
-    }
-
-    public ListenableFuture<Comic> latest() {
-        current = latest;
-        return getComic(current);
-    }
-
-    private ListenableFuture<Comic> getComic(Integer index) {
+    public ListenableFuture<Comic> getComic(final Integer index) {
         if (mComics.containsKey(index)) {
             return Futures.immediateFuture(mComics.get(index));
         }
 
         final SettableFuture<Comic> future = SettableFuture.create();
-        Request req = new Request.Builder().url(endpoint+index).build();
+        Request req = new Request.Builder().url(endpoint + index).build();
         Call call = new OkHttpClient().newCall(req);
 
         call.enqueue(new Callback() {
@@ -85,12 +57,13 @@ public class ComicManager {
             @Override
             public void onResponse(Response response) throws IOException {
                 String body = response.body().string();
-                Type listType = new TypeToken<List<Comic>>() {}.getType();
+                Type listType = new TypeToken<List<Comic>>() {
+                }.getType();
                 List<Comic> comics = new Gson().fromJson(body, listType);
                 for (Comic comic : comics) {
                     mComics.put(comic.mIndex, comic);
                 }
-                future.set(mComics.get(current));
+                future.set(mComics.get(index));
             }
         });
 
@@ -98,12 +71,12 @@ public class ComicManager {
     }
 
     private void setLatest() {
-        Request req = new Request.Builder().url(endpoint+"latest").build();
+        Request req = new Request.Builder().url(endpoint + "latest").build();
         Call call = new OkHttpClient().newCall(req);
         call.enqueue(new Callback() {
             @Override
             public void onFailure(Request request, IOException e) {
-                Log.d(LOGTAG, "request failed - " + endpoint+"latest");
+                Log.d(LOGTAG, "request failed - " + endpoint + "latest");
             }
 
             @Override
